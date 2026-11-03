@@ -1,203 +1,281 @@
 "use client";
 
+import { useAudioDownloader } from "@/hooks/useAudioDownloader";
+import { useConversionHistory } from "@/hooks/useConversionHistory";
+import { AUTHORIZED_YOUTUBE_SAMPLES } from "@/lib/samples";
 import {
-  AudioBitrate,
-  AudioFormat,
-  ConvertErrorResponse,
-  ConvertResponse,
-} from "@/types/audio";
-import { AlertCircle, CheckCircle2, Download, Loader2 } from "lucide-react";
+  AlertCircle,
+  Check,
+  ClipboardPaste,
+  Loader2,
+  PlaySquare,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { FormEvent, useState } from "react";
-
-const BITRATES: AudioBitrate[] = [128, 192, 320];
+import { AudioResultCard } from "./AudioResultCard";
+import { ConversionHistory } from "./ConversionHistory";
+import { StatusStepIndicator } from "./StatusStepIndicator";
 
 export function AudioDownloaderHero() {
-  const [url, setUrl] = useState("");
-  const [format, setFormat] = useState<AudioFormat>("MP3");
-  const [bitrate, setBitrate] = useState<AudioBitrate>(192);
-  const [status, setStatus] = useState<
-    "idle" | "processing" | "ready" | "error"
-  >("idle");
-  const [downloadLink, setDownloadLink] = useState<string | null>(null);
-  const [downloadFilename, setDownloadFilename] = useState<string>("audio.mp3");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { history, addHistoryItem, removeHistoryItem, clearHistory } =
+    useConversionHistory();
 
-  const backendBase = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(
-    /\/+$/,
-    ""
-  );
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!url.trim() || status === "processing") return;
-
-    setStatus("processing");
-    setErrorMessage(null);
-    setDownloadLink(null);
-
-    try {
-      const res = await fetch(`${backendBase}/api/convert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: url.trim(),
-          format,
-          bitrate,
-        }),
+  const {
+    url,
+    setUrl,
+    step,
+    metadata,
+    selectedBitrate,
+    setSelectedBitrate,
+    progress,
+    downloadedBytes,
+    totalBytes,
+    errorMessage,
+    providerNotice,
+    inspectYouTubeVideo,
+    downloadMp3,
+    resetState,
+  } = useAudioDownloader({
+    onDownloadSuccess: ({ metadata: meta, bitrate }) => {
+      addHistoryItem({
+        videoId: meta.videoId,
+        title: meta.title,
+        channelTitle: meta.channelTitle,
+        thumbnailUrl: meta.thumbnailUrl,
+        formattedDuration: meta.formattedDuration,
+        bitrate,
+        youtubeUrl: meta.canonicalWatchUrl,
       });
+    },
+  });
 
-      const data = await res.json();
+  const [clipboardCopiedFeedback, setClipboardCopiedFeedback] = useState(false);
+  const [clipboardError, setClipboardError] = useState<string | null>(null);
 
-      if (!res.ok) {
-        const err = data as ConvertErrorResponse;
-        setStatus("error");
-        setErrorMessage(err.error || "No se pudo procesar el audio.");
+  const isBusy =
+    step === "inspecting" || step === "converting" || step === "downloading";
+
+  const handlePasteFromClipboard = async () => {
+    setClipboardError(null);
+    try {
+      if (!navigator.clipboard?.readText) {
+        setClipboardError(
+          "Tu navegador requiere pegar manualmente con Ctrl+V / Cmd+V."
+        );
         return;
       }
-
-      const result = data as ConvertResponse;
-      const fullDownloadUrl = `${backendBase}${result.downloadUrl}`;
-      setDownloadLink(fullDownloadUrl);
-      setDownloadFilename(result.filename);
-      setStatus("ready");
-
-      // Iniciar descarga automáticamente cuando el archivo MP3 esté listo
-      const anchor = document.createElement("a");
-      anchor.href = fullDownloadUrl;
-      anchor.download = result.filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    } catch (err) {
-      setStatus("error");
-      setErrorMessage(
-        err instanceof Error
-          ? `Error de conexión con el servidor: ${err.message}`
-          : "Error inesperado al procesar la solicitud."
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        setUrl(text.trim());
+        setClipboardCopiedFeedback(true);
+        setTimeout(() => setClipboardCopiedFeedback(false), 2000);
+      }
+    } catch {
+      setClipboardError(
+        "Permiso de portapapeles denegado. Usa Ctrl+V o mantén presionado en el campo."
       );
     }
   };
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!url.trim() || isBusy) return;
+    await inspectYouTubeVideo();
+  };
+
+  const handleSelectSample = async (sampleUrl: string) => {
+    if (isBusy) return;
+    await inspectYouTubeVideo(sampleUrl);
+  };
+
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-[#0B0B0F] px-4 py-12">
-      <div className="w-full max-w-xl rounded-3xl border border-[#7C3AED]/30 bg-[#13131C] p-6 shadow-2xl shadow-black/80 sm:p-8">
-        <h1 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
-          YOUTUBE TO <span className="text-[#7C3AED]">MP3</span>
-        </h1>
+    <section
+      id="inicio"
+      className="relative overflow-hidden pt-12 pb-16 sm:pt-20 sm:pb-24"
+    >
+      {/* Resplandor violeta central sobre fondo negro */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-36 left-1/2 -z-10 h-[440px] w-[820px] -translate-x-1/2 rounded-full bg-[#7C3AED]/25 blur-[140px]"
+      />
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          {/* Campo de entrada */}
-          <div>
-            <label
-              htmlFor="yt-url-input"
-              className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#A1A1AA]"
-            >
-              Enlace
-            </label>
-            <input
-              id="yt-url-input"
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={status === "processing"}
-              placeholder="Pega aquí el enlace de YouTube."
-              className="w-full rounded-2xl border border-white/15 bg-[#09090D] px-4 py-4 text-sm text-white placeholder-[#A1A1AA]/60 transition-colors focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 disabled:opacity-60 sm:text-base"
-            />
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        {/* Encabezado Principal */}
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#7C3AED]/40 bg-[#13131C] px-4 py-1.5 text-xs font-semibold text-[#A78BFA]">
+            <Sparkles className="h-3.5 w-3.5 text-[#7C3AED]" />
+            <span>MP3 Audio · 128 kbps · 192 kbps · 320 kbps</span>
           </div>
 
-          {/* Selector de formato y Selector de calidad */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="format-select"
-                className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#A1A1AA]"
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-white sm:text-6xl">
+            YOUTUBE TO{" "}
+            <span className="bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] bg-clip-text text-transparent">
+              MP3
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-4 max-w-xl text-base text-[#A1A1AA] sm:text-lg">
+            Convierte contenido autorizado de YouTube a MP3.
+          </p>
+        </div>
+
+        {/* Caja central del convertidor YouTube a MP3 */}
+        <div className="mt-10 rounded-3xl border border-[#7C3AED]/30 bg-[#13131C]/95 p-4 shadow-2xl shadow-[#7C3AED]/10 backdrop-blur-md sm:p-7">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative flex flex-col gap-3 sm:flex-row">
+              {/* Campo central grande para pegar enlaces de YouTube */}
+              <div className="relative flex-1">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[#A78BFA]">
+                  <PlaySquare className="h-5 w-5" />
+                </div>
+
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="Pega aquí el enlace de YouTube..."
+                  aria-label="Pega aquí el enlace de YouTube"
+                  className="w-full rounded-2xl border border-white/15 bg-[#09090D] py-4 pl-12 pr-24 text-sm text-white placeholder-[#A1A1AA]/65 transition-all focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/50 disabled:opacity-60 sm:py-5 sm:text-base"
+                />
+
+                {/* Botones limpiar y pegar dentro del campo */}
+                <div className="absolute inset-y-0 right-2.5 flex items-center gap-1">
+                  {url && !isBusy && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUrl("");
+                        resetState();
+                      }}
+                      title="Limpiar enlace"
+                      aria-label="Limpiar enlace"
+                      className="rounded-xl p-2 text-[#A1A1AA] transition-colors hover:bg-white/5 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    disabled={isBusy}
+                    title="Pegar enlace desde el portapapeles"
+                    aria-label="Pegar enlace desde el portapapeles"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#7C3AED]/30 bg-[#17171F] px-3 py-2 text-xs font-semibold text-[#A78BFA] transition-all hover:border-[#7C3AED] hover:bg-[#7C3AED]/20 hover:text-white disabled:opacity-50"
+                  >
+                    {clipboardCopiedFeedback ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-400" />
+                        <span className="hidden sm:inline">Pegado</span>
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardPaste className="h-4 w-4" />
+                        <span className="hidden sm:inline">Pegar</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón violeta destacado: CONVERTIR A MP3 */}
+              <button
+                type="submit"
+                disabled={isBusy || !url.trim()}
+                className="inline-flex shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-[#7C3AED] px-8 py-4 text-sm font-extrabold uppercase tracking-wide text-white shadow-lg shadow-[#7C3AED]/40 transition-all duration-200 hover:bg-[#6D28D9] hover:shadow-[#7C3AED]/60 focus:outline-none focus:ring-2 focus:ring-[#A78BFA] disabled:cursor-not-allowed disabled:opacity-50 sm:py-5 sm:text-base"
               >
-                Formato
-              </label>
-              <select
-                id="format-select"
-                value={format}
-                onChange={(e) => setFormat(e.target.value as AudioFormat)}
-                disabled={status === "processing"}
-                className="w-full rounded-2xl border border-white/15 bg-[#09090D] px-4 py-3.5 text-sm font-bold text-white focus:border-[#7C3AED] focus:outline-none"
-              >
-                <option value="MP3">MP3</option>
-              </select>
+                {step === "inspecting" ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>ANALIZANDO...</span>
+                  </>
+                ) : (
+                  <span>CONVERTIR A MP3</span>
+                )}
+              </button>
             </div>
 
-            <div>
-              <label
-                htmlFor="bitrate-select"
-                className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#A1A1AA]"
-              >
-                Calidad
-              </label>
-              <select
-                id="bitrate-select"
-                value={bitrate}
-                onChange={(e) =>
-                  setBitrate(Number(e.target.value) as AudioBitrate)
-                }
-                disabled={status === "processing"}
-                className="w-full rounded-2xl border border-white/15 bg-[#09090D] px-4 py-3.5 text-sm font-bold text-white focus:border-[#7C3AED] focus:outline-none"
-              >
-                {BITRATES.map((b) => (
-                  <option key={b} value={b}>
-                    {b} kbps
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Botón principal: DESCARGAR MP3 */}
-          <button
-            type="submit"
-            disabled={status === "processing" || !url.trim()}
-            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#7C3AED] px-6 py-4 text-sm font-extrabold uppercase tracking-wide text-white shadow-lg shadow-[#7C3AED]/40 transition-all hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
-          >
-            {status === "processing" ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>PROCESANDO CON FFMPEG...</span>
-              </>
-            ) : (
-              <>
-                <Download className="h-5 w-5" />
-                <span>DESCARGAR MP3</span>
-              </>
+            {clipboardError && (
+              <p className="text-xs text-amber-400">{clipboardError}</p>
             )}
-          </button>
-        </form>
+          </form>
 
-        {/* Enlace directo de descarga cuando está listo */}
-        {status === "ready" && downloadLink && (
-          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-200">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span>Archivo MP3 ({bitrate} kbps) generado.</span>
+          {/* Enlaces reales de YouTube con audio autorizado para probar el flujo completo */}
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <p className="text-xs font-medium text-[#A1A1AA]">
+              Enlaces de YouTube con audio autorizado listos para probar el
+              flujo completo:
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {AUTHORIZED_YOUTUBE_SAMPLES.map((sample) => (
+                <button
+                  key={sample.videoId}
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => handleSelectSample(sample.youtubeUrl)}
+                  className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#09090D] px-3 py-1.5 text-left text-xs text-[#A1A1AA] transition-all hover:border-[#7C3AED] hover:bg-[#7C3AED]/15 hover:text-white disabled:opacity-50"
+                >
+                  <span className="h-2 w-2 rounded-full bg-[#7C3AED]" />
+                  <span className="font-medium text-white/90">
+                    {sample.title}
+                  </span>
+                  <span className="rounded bg-[#7C3AED]/20 px-1.5 py-0.5 font-mono text-[10px] text-[#A78BFA]">
+                    {sample.duration}
+                  </span>
+                </button>
+              ))}
             </div>
-            <a
-              href={downloadLink}
-              download={downloadFilename}
-              className="rounded-xl bg-emerald-600 px-3 py-1.5 font-bold text-white transition-colors hover:bg-emerald-500"
-            >
-              Guardar archivo
-            </a>
           </div>
-        )}
 
-        {/* Mensaje de error si ocurre */}
-        {status === "error" && errorMessage && (
-          <div
-            role="alert"
-            className="mt-5 flex items-start gap-2.5 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs text-rose-200"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
+          {/* Indicador de progreso y estado real */}
+          <StatusStepIndicator
+            step={step}
+            progress={progress}
+            downloadedBytes={downloadedBytes}
+            totalBytes={totalBytes}
+          />
+
+          {/* Mensajes de error claros */}
+          {step === "error" && errorMessage && (
+            <div
+              role="alert"
+              className="animate-fade-in mt-5 flex items-start gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200"
+            >
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
+              <div className="space-y-1">
+                <p className="font-bold text-white">
+                  Aviso al procesar el enlace de YouTube
+                </p>
+                <p className="text-xs leading-relaxed text-rose-200/90">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tarjeta del video de YouTube con miniatura, duración, selector de calidad y botón DESCARGAR MP3 */}
+          {metadata && step !== "error" && (
+            <AudioResultCard
+              metadata={metadata}
+              selectedBitrate={selectedBitrate}
+              onSelectBitrate={setSelectedBitrate}
+              onDownload={downloadMp3}
+              step={step}
+              providerNotice={providerNotice}
+            />
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Historial local de videos de YouTube convertidos */}
+      <ConversionHistory
+        history={history}
+        onSelectUrl={(selectedUrl) => inspectYouTubeVideo(selectedUrl)}
+        onRemoveItem={removeHistoryItem}
+        onClearAll={clearHistory}
+      />
+    </section>
   );
 }
