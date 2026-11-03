@@ -5,10 +5,10 @@ import {
   AudioQualityOption,
   YouTubeVideoMetadata,
 } from "@/types/audio";
+import { AuthorizedDownloaderService } from "./authorized-downloader.service";
 
 function buildYouTubeQualityOptions(
-  durationSeconds: number | null,
-  baseSizeBytes?: number | null
+  durationSeconds: number | null
 ): AudioQualityOption[] {
   const bitrates: Array<{
     bitrate: AudioBitrate;
@@ -35,7 +35,7 @@ function buildYouTubeQualityOptions(
   return bitrates.map((item) => {
     const estimatedSizeBytes = durationSeconds
       ? Math.round(((item.bitrate * 1000) / 8) * durationSeconds)
-      : baseSizeBytes || null;
+      : null;
 
     return {
       bitrate: item.bitrate,
@@ -46,7 +46,14 @@ function buildYouTubeQualityOptions(
   });
 }
 
+/**
+ * Inspector de enlaces de YouTube que utiliza exclusivamente el endpoint público
+ * oficial YouTube oEmbed y verifica en `AuthorizedDownloaderService` si el usuario
+ * cuenta con el archivo de origen autorizado. No consulta mirrors en servidores de terceros.
+ */
 export class MetadataInspectorService {
+  private readonly authorizedDownloader = new AuthorizedDownloaderService();
+
   public async inspectUrl(rawUrl: string): Promise<YouTubeVideoMetadata> {
     const validation = parseAndValidateYouTubeUrl(rawUrl);
     if (
@@ -63,15 +70,12 @@ export class MetadataInspectorService {
 
     const { videoId, canonicalWatchUrl } = validation;
 
-    // Consultar sin API keys:
-    // a) YouTube Official oEmbed API (pública, sin clave requerida)
-    // b) Repositorio de preservación autorizada (archive.org/metadata/youtube-{videoId})
-    const [oembedData, archiveMirror] = await Promise.all([
+    const [oembedData, authorizedSource] = await Promise.all([
       this.fetchYouTubeOEmbed(canonicalWatchUrl),
-      this.fetchAuthorizedArchiveMirror(videoId),
+      this.authorizedDownloader.checkAuthorizedYouTubeSource(videoId),
     ]);
 
-    if (!oembedData && !archiveMirror) {
+    if (!oembedData) {
       const err = new Error(
         "No se encontró el video de YouTube solicitado o el video es privado/no disponible."
       ) as Error & { code?: string };
@@ -79,53 +83,26 @@ export class MetadataInspectorService {
       throw err;
     }
 
-    const title =
-      oembedData?.title ||
-      archiveMirror?.title ||
-      `YouTube Video (${videoId})`;
-
-    const channelTitle =
-      oembedData?.authorName ||
-      archiveMirror?.creator ||
-      "Canal de YouTube";
-
-    const thumbnailUrl =
-      oembedData?.thumbnailUrl ||
-      `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-    const durationSeconds = archiveMirror?.durationSeconds ?? null;
-
-    const license = archiveMirror
-      ? "Contenido con Espejo de Audio Autorizado"
-      : "Contenido de YouTube (Uso bajo autorización)";
-
-    const metadataSource = archiveMirror
-      ? "YouTube oEmbed Oficial + Repositorio Autorizado"
-      : "YouTube oEmbed API Oficial";
-
-    const authorizedAudioAvailable = Boolean(archiveMirror?.mp3Url);
-
-    const qualities = buildYouTubeQualityOptions(
-      durationSeconds,
-      archiveMirror?.sizeBytes
-    );
+    const qualities = buildYouTubeQualityOptions(null);
 
     return {
       videoId,
       youtubeUrl: rawUrl.trim(),
       canonicalWatchUrl,
-      title,
-      channelTitle,
-      channelUrl: oembedData?.authorUrl,
-      thumbnailUrl,
-      durationSeconds,
-      formattedDuration: formatDuration(durationSeconds),
+      title: oembedData.title,
+      channelTitle: oembedData.authorName,
+      channelUrl: oembedData.authorUrl,
+      thumbnailUrl:
+        oembedData.thumbnailUrl ||
+        `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      durationSeconds: null,
+      formattedDuration: formatDuration(null),
       format: "MP3",
-      license,
-      metadataSource,
-      authorizedAudioAvailable,
-      authorizedAudioUrl: archiveMirror?.mp3Url,
-      authorizedAudioSizeBytes: archiveMirror?.sizeBytes ?? null,
+      license: authorizedSource.available
+        ? "Fuente de descarga autorizada verificada"
+        : "Sin fuente de descarga autorizada registrada",
+      metadataSource: "YouTube oEmbed Oficial",
+      authorizedAudioAvailable: authorizedSource.available,
       qualities,
     };
   }
@@ -152,72 +129,6 @@ export class MetadataInspectorService {
         authorName: String(data.author_name || "Canal de YouTube"),
         authorUrl: data.author_url ? String(data.author_url) : undefined,
         thumbnailUrl: String(data.thumbnail_url || ""),
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  private async fetchAuthorizedArchiveMirror(videoId: string): Promise<{
-    title?: string;
-    creator?: string;
-    mp3Url: string;
-    durationSeconds: number | null;
-    sizeBytes: number | null;
-  } | null> {
-    try {
-      const identifier = `youtube-${videoId}`;
-      const res = await fetch(
-        `https://archive.org/metadata/${encodeURIComponent(identifier)}`,
-        {
-          headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(8000),
-        }
-      );
-
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (!data || !Array.isArray(data.files)) return null;
-
-      interface ArchiveFile {
-        name: string;
-        format?: string;
-        size?: string | number;
-        length?: string | number;
-      }
-
-      const files = data.files as ArchiveFile[];
-      const mp3File =
-        files.find(
-          (f) =>
-            (f.name || "").toLowerCase().endsWith(".mp3") &&
-            (f.format || "").toLowerCase().includes("vbr")
-        ) ||
-        files.find((f) => (f.name || "").toLowerCase().endsWith(".mp3"));
-
-      if (!mp3File) return null;
-
-      const mp3Url = `https://archive.org/download/${encodeURIComponent(
-        identifier
-      )}/${mp3File.name
-        .split("/")
-        .map((part) => encodeURIComponent(part))
-        .join("/")}`;
-
-      const rawLen = mp3File.length ? parseFloat(String(mp3File.length)) : NaN;
-      const durationSeconds = !Number.isNaN(rawLen) && rawLen > 0 ? rawLen : null;
-      const sizeBytes = mp3File.size ? Number(mp3File.size) : null;
-
-      return {
-        title: data.metadata?.title
-          ? String(data.metadata.title)
-          : undefined,
-        creator: data.metadata?.creator
-          ? String(data.metadata.creator)
-          : undefined,
-        mp3Url,
-        durationSeconds,
-        sizeBytes,
       };
     } catch {
       return null;

@@ -3,11 +3,11 @@ export type AudioBitrate = 128 | 192 | 320;
 export type ProcessingStep =
   | "idle"            // Esperando enlace de YouTube
   | "inspecting"      // Validando enlace de YouTube y obteniendo metadatos
-  | "ready"           // Miniatura, título y duración listos para seleccionar calidad y descargar
-  | "converting"      // Procesando conversión a MP3 en la calidad seleccionada
+  | "ready"           // Miniatura, título y opciones listos para seleccionar calidad y descargar
+  | "converting"      // Procesando conversión a MP3 con FFmpeg en la calidad seleccionada
   | "downloading"     // Transfiriendo archivo MP3 con progreso real
   | "completed"       // Archivo MP3 descargado
-  | "error";          // Error de validación o de origen
+  | "error";          // Error de validación o sin fuente autorizada
 
 export interface AudioQualityOption {
   bitrate: AudioBitrate;
@@ -50,7 +50,7 @@ export interface ConvertYouTubeResponse {
   filename: string;
   bitrate: AudioBitrate;
   format: "MP3";
-  providerUsed: "authorized-archive-stream";
+  providerUsed: "ffmpeg-local";
   sizeBytes?: number | null;
   expiresAt?: string;
   notice?: string;

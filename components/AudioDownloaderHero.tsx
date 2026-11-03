@@ -2,7 +2,6 @@
 
 import { useAudioDownloader } from "@/hooks/useAudioDownloader";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
-import { AUTHORIZED_YOUTUBE_SAMPLES } from "@/lib/samples";
 import {
   AlertCircle,
   Check,
@@ -84,11 +83,6 @@ export function AudioDownloaderHero() {
     await inspectYouTubeVideo();
   };
 
-  const handleSelectSample = async (sampleUrl: string) => {
-    if (isBusy) return;
-    await inspectYouTubeVideo(sampleUrl);
-  };
-
   return (
     <section
       id="inicio"
@@ -105,7 +99,7 @@ export function AudioDownloaderHero() {
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#7C3AED]/40 bg-[#13131C] px-4 py-1.5 text-xs font-semibold text-[#A78BFA]">
             <Sparkles className="h-3.5 w-3.5 text-[#7C3AED]" />
-            <span>MP3 Audio · 128 kbps · 192 kbps · 320 kbps</span>
+            <span>FFmpeg Local · 128 kbps · 192 kbps · 320 kbps</span>
           </div>
 
           <h1 className="mt-6 text-4xl font-black tracking-tight text-white sm:text-6xl">
@@ -202,33 +196,6 @@ export function AudioDownloaderHero() {
             )}
           </form>
 
-          {/* Enlaces reales de YouTube con audio autorizado para probar el flujo completo */}
-          <div className="mt-5 border-t border-white/10 pt-4">
-            <p className="text-xs font-medium text-[#A1A1AA]">
-              Enlaces de YouTube con audio autorizado listos para probar el
-              flujo completo:
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              {AUTHORIZED_YOUTUBE_SAMPLES.map((sample) => (
-                <button
-                  key={sample.videoId}
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => handleSelectSample(sample.youtubeUrl)}
-                  className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#09090D] px-3 py-1.5 text-left text-xs text-[#A1A1AA] transition-all hover:border-[#7C3AED] hover:bg-[#7C3AED]/15 hover:text-white disabled:opacity-50"
-                >
-                  <span className="h-2 w-2 rounded-full bg-[#7C3AED]" />
-                  <span className="font-medium text-white/90">
-                    {sample.title}
-                  </span>
-                  <span className="rounded bg-[#7C3AED]/20 px-1.5 py-0.5 font-mono text-[10px] text-[#A78BFA]">
-                    {sample.duration}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Indicador de progreso y estado real */}
           <StatusStepIndicator
             step={step}
@@ -246,7 +213,7 @@ export function AudioDownloaderHero() {
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
               <div className="space-y-1">
                 <p className="font-bold text-white">
-                  Aviso al procesar el enlace de YouTube
+                  Enlace sin fuente de descarga autorizada
                 </p>
                 <p className="text-xs leading-relaxed text-rose-200/90">
                   {errorMessage}
@@ -255,8 +222,8 @@ export function AudioDownloaderHero() {
             </div>
           )}
 
-          {/* Tarjeta del video de YouTube con miniatura, duración, selector de calidad y botón DESCARGAR MP3 */}
-          {metadata && step !== "error" && (
+          {/* Tarjeta del video de YouTube */}
+          {metadata && (
             <AudioResultCard
               metadata={metadata}
               selectedBitrate={selectedBitrate}

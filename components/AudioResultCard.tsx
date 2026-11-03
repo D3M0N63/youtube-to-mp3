@@ -60,13 +60,11 @@ export function AudioResultCard({
             )}
           </div>
 
-          {/* Badge de duración en la esquina inferior derecha estilo YouTube */}
           <div className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 rounded-md bg-black/85 px-2 py-1 text-xs font-bold text-white backdrop-blur-sm">
             <Clock className="h-3 w-3 text-[#A78BFA]" />
             <span>{metadata.formattedDuration}</span>
           </div>
 
-          {/* Etiqueta de formato MP3 en la esquina superior izquierda */}
           <div className="absolute top-2.5 left-2.5 rounded-md bg-[#7C3AED] px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-white shadow">
             FORMATO: {metadata.format}
           </div>
@@ -78,7 +76,7 @@ export function AudioResultCard({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7C3AED]/40 bg-[#7C3AED]/15 px-3 py-0.5 text-xs font-semibold text-[#A78BFA]">
                 <FileAudio className="h-3.5 w-3.5" />
-                Audio {metadata.format}
+                Audio {metadata.format} · FFmpeg Local
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-[#A1A1AA]">
                 ID: {metadata.videoId}
@@ -94,11 +92,6 @@ export function AudioResultCard({
                 <Tv className="h-4 w-4 text-[#A78BFA]" />
                 {metadata.channelTitle}
               </span>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1 text-xs">
-                <Clock className="h-3.5 w-3.5 text-[#A78BFA]" />
-                Duración: {metadata.formattedDuration}
-              </span>
             </div>
           </div>
 
@@ -106,7 +99,7 @@ export function AudioResultCard({
           <div className="mt-5">
             <label className="mb-2.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#A1A1AA]">
               <Sliders className="h-3.5 w-3.5 text-[#A78BFA]" />
-              Calidad de audio MP3
+              Calidad de conversión FFmpeg (MP3)
             </label>
 
             <div className="grid grid-cols-3 gap-2.5">
@@ -153,8 +146,10 @@ export function AudioResultCard({
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
               <span>
-                Este video fue identificado mediante YouTube oEmbed, pero no
-                cuenta con un flujo de audio de libre descarga disponible.
+                Este enlace de YouTube no tiene una fuente de descarga
+                autorizada en <code>authorized-media/{metadata.videoId}.*</code>
+                . Coloca el archivo autorizado de este video en dicha carpeta
+                para convertirlo a MP3 con FFmpeg.
               </span>
             </div>
           )}
@@ -179,7 +174,7 @@ export function AudioResultCard({
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>
                     {step === "converting"
-                      ? "CONVIRTIENDO..."
+                      ? "CONVIRTIENDO CON FFMPEG..."
                       : "DESCARGANDO MP3..."}
                   </span>
                 </>

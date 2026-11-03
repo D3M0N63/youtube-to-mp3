@@ -7,17 +7,17 @@ const FAQS = [
   {
     question: "¿Qué formatos de enlaces de YouTube son compatibles?",
     answer:
-      "El sistema acepta enlaces estándar de YouTube (https://www.youtube.com/watch?v=...), enlaces cortos (https://youtu.be/...), enlaces móviles (m.youtube.com) y enlaces de YouTube Shorts.",
+      "El sistema identifica enlaces estándar de YouTube (https://www.youtube.com/watch?v=...), enlaces cortos (https://youtu.be/...), enlaces móviles (m.youtube.com) y enlaces de YouTube Shorts mediante la API oficial YouTube oEmbed.",
   },
   {
-    question: "¿Qué calidades de audio MP3 están disponibles?",
+    question: "¿Cómo se separa la descarga autorizada de la conversión a MP3?",
     answer:
-      "Puedes seleccionar entre tres calidades antes de descargar: 128 kbps (tamaño compacto), 192 kbps (alta calidad recomendada) y 320 kbps (máxima fidelidad en formato MP3).",
+      "El servicio AuthorizedDownloaderService verifica exclusivamente si existe una fuente de descarga autorizada para el video (en el almacén local authorized-media/<videoId>.* o mediante URL directa autorizada), sin buscar mirrors en Internet Archive ni en servidores de terceros. Una vez adquirido el archivo autorizado, el servicio independiente FfmpegConverterService ejecuta FFmpeg localmente para codificar el audio a MP3 en 128, 192 o 320 kbps.",
   },
   {
-    question: "¿Cómo funciona la identificación y descarga sin necesidad de API keys?",
+    question: "¿Por qué algunos enlaces de YouTube muestran que no tienen fuente de descarga autorizada?",
     answer:
-      "La identificación del video (miniatura, título y canal) se realiza mediante la API pública oficial YouTube oEmbed y la descarga del audio MP3 se ejecuta a través de los espejos de audio autorizado disponibles.",
+      "YouTube no ofrece un endpoint público para descargar flujos de audio/video de terceros sin autorización, y esta aplicación no implementa mecanismos para eludir las restricciones técnicas de YouTube.",
   },
 ];
 
