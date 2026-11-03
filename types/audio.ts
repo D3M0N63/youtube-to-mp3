@@ -7,7 +7,7 @@ export type ProcessingStep =
   | "converting"      // Procesando conversión a MP3 en la calidad seleccionada
   | "downloading"     // Transfiriendo archivo MP3 con progreso real
   | "completed"       // Archivo MP3 descargado
-  | "error";          // Error de validación o de proveedor
+  | "error";          // Error de validación o de origen
 
 export interface AudioQualityOption {
   bitrate: AudioBitrate;
@@ -33,8 +33,6 @@ export interface YouTubeVideoMetadata {
   authorizedAudioUrl?: string;
   authorizedAudioSizeBytes?: number | null;
   qualities: AudioQualityOption[];
-  externalApiConfigured: boolean;
-  cloudConvertConfigured: boolean;
 }
 
 export interface ConvertYouTubeRequest {
@@ -52,10 +50,7 @@ export interface ConvertYouTubeResponse {
   filename: string;
   bitrate: AudioBitrate;
   format: "MP3";
-  providerUsed:
-    | "authorized-youtube-api"
-    | "cloudconvert-v2"
-    | "authorized-archive-stream";
+  providerUsed: "authorized-archive-stream";
   sizeBytes?: number | null;
   expiresAt?: string;
   notice?: string;
@@ -78,7 +73,6 @@ export interface ApiErrorResponse {
     | "INVALID_YOUTUBE_URL"
     | "VIDEO_NOT_FOUND"
     | "RESTRICTED_CONTENT"
-    | "PROVIDER_CREDENTIALS_REQUIRED"
     | "SSRF_BLOCKED"
     | "FILE_TOO_LARGE"
     | "RATE_LIMITED"

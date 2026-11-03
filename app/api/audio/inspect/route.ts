@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
       INVALID_YOUTUBE_URL: 400,
       VIDEO_NOT_FOUND: 404,
       RESTRICTED_CONTENT: 403,
-      PROVIDER_CREDENTIALS_REQUIRED: 503,
       SSRF_BLOCKED: 403,
       FILE_TOO_LARGE: 413,
       RATE_LIMITED: 429,

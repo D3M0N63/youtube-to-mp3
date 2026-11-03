@@ -153,10 +153,8 @@ export function AudioResultCard({
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
               <span>
-                Metadatos obtenidos vía YouTube oEmbed. Para convertir este
-                video específico se requiere configurar las credenciales del
-                proveedor externo autorizado (<code>AUTHORIZED_YT_API_URL</code>{" "}
-                y <code>AUTHORIZED_YT_API_KEY</code>) en el entorno.
+                Este video fue identificado mediante YouTube oEmbed, pero no
+                cuenta con un flujo de audio de libre descarga disponible.
               </span>
             </div>
           )}

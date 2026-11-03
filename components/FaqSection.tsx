@@ -15,14 +15,9 @@ const FAQS = [
       "Puedes seleccionar entre tres calidades antes de descargar: 128 kbps (tamaño compacto), 192 kbps (alta calidad recomendada) y 320 kbps (máxima fidelidad en formato MP3).",
   },
   {
-    question: "¿Cómo obtiene el sistema la información y el audio sin evadir restricciones de YouTube?",
+    question: "¿Cómo funciona la identificación y descarga sin necesidad de API keys?",
     answer:
-      "La identificación del video (miniatura, título y canal) se realiza mediante la API pública oficial YouTube oEmbed y, opcionalmente, YouTube Data API v3 para obtener la duración exacta e información de licencia. La conversión y descarga del audio MP3 se ejecuta únicamente a través de espejos de preservación autorizados o mediante un proveedor externo autorizado configurado por variables de entorno (AUTHORIZED_YT_API_URL y AUTHORIZED_YT_API_KEY).",
-  },
-  {
-    question: "¿Qué credenciales opcionales puedo configurar en Vercel o Netlify?",
-    answer:
-      "Para obtener duraciones exactas en cualquier video puedes definir YOUTUBE_DATA_API_KEY. Para procesar conversiones mediante un proveedor externo autorizado de YouTube a MP3 puedes definir AUTHORIZED_YT_API_URL y AUTHORIZED_YT_API_KEY, además de CLOUDCONVERT_API_KEY para recodificación de bitrate en la nube.",
+      "La identificación del video (miniatura, título y canal) se realiza mediante la API pública oficial YouTube oEmbed y la descarga del audio MP3 se ejecuta a través de los espejos de audio autorizado disponibles.",
   },
 ];
 

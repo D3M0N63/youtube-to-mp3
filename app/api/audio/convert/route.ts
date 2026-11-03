@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
           "No se pudo completar la conversión del video de YouTube a MP3.",
         code,
       } satisfies ApiErrorResponse,
-      { status: code === "PROVIDER_CREDENTIALS_REQUIRED" ? 503 : 500 }
+      { status: code === "RESTRICTED_CONTENT" ? 403 : 500 }
     );
   }
 }

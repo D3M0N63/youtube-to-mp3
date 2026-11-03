@@ -14,25 +14,18 @@ export interface ConvertYouTubeJobResult {
   filename: string;
   bitrate: AudioBitrate;
   format: "MP3";
-  providerUsed:
-    | "authorized-youtube-api"
-    | "cloudconvert-v2"
-    | "authorized-archive-stream";
+  providerUsed: "authorized-archive-stream";
   expiresAt?: string;
   sizeBytes?: number | null;
   notice?: string;
 }
 
 /**
- * Interfaz desacoplada para proveedores autorizados de conversión YouTube a MP3.
+ * Interfaz para el motor de conversión de audio autorizado sin necesidad de API keys externas.
  */
 export interface IYouTubeConversionProvider {
-  readonly id:
-    | "authorized-youtube-api"
-    | "cloudconvert-v2"
-    | "authorized-archive-stream";
+  readonly id: "authorized-archive-stream";
   readonly displayName: string;
-  isConfigured(): boolean;
   convertYouTubeToMp3(
     params: ConvertYouTubeJobParams
   ): Promise<ConvertYouTubeJobResult>;
